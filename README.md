@@ -1,1 +1,1 @@
-# blockchain-configuration-service
+# blockchain-network-registry
