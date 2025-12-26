@@ -1,0 +1,36 @@
+{
+  "displayName": "unit",
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "src",
+  "testRegex": ".*\\.spec\\.ts$",
+  "testPathIgnorePatterns": [".integration.spec.ts$"],
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "collectCoverageFrom": [
+    "**/*.(t|j)s",
+    "!**/*.spec.ts",
+    "!**/*.integration.spec.ts",
+    "!**/index.ts",
+    "!**/main.ts",
+    "!**/*.module.ts",
+    "!**/types/**",
+    "!**/decorators/**"
+  ],
+  "coverageDirectory": "../coverage/unit",
+  "coverageThreshold": {
+    "global": {
+      "branches": 85,
+      "functions": 85,
+      "lines": 85,
+      "statements": 85
+    }
+  },
+  "testEnvironment": "node",
+  "moduleNameMapper": {
+    "^@application/(.*)$": "<rootDir>/application/$1",
+    "^@domain/(.*)$": "<rootDir>/domain/$1",
+    "^@infrastructure/(.*)$": "<rootDir>/infrastructure/$1",
+    "^@shared/(.*)$": "<rootDir>/shared/$1"
+  }
+}

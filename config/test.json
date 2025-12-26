@@ -1,0 +1,30 @@
+{
+  "server": {
+    "port": 3001,
+    "cors": {
+      "origin": "*"
+    }
+  },
+  "database": {
+    "client": "pg",
+    "connection": {
+      "host": "localhost",
+      "port": 5433,
+      "database": "network_registry_test",
+      "user": "network_registry_test",
+      "password": "network_registry_test"
+    },
+    "pool": {
+      "min": 2,
+      "max": 10
+    },
+    "migrations": {
+      "directory": "./migrations",
+      "extension": "ts"
+    }
+  },
+  "jwt": {
+    "secret": "test-jwt-secret-key",
+    "expiresIn": "1h"
+  }
+}

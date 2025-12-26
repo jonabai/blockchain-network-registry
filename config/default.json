@@ -1,0 +1,33 @@
+{
+  "server": {
+    "port": 3000,
+    "cors": {
+      "origin": "*"
+    }
+  },
+  "database": {
+    "client": "pg",
+    "connection": {
+      "host": "localhost",
+      "port": 5432,
+      "database": "network_registry",
+      "user": "network_registry",
+      "password": "network_registry"
+    },
+    "pool": {
+      "min": 2,
+      "max": 10
+    },
+    "migrations": {
+      "directory": "./migrations",
+      "extension": "ts"
+    }
+  },
+  "jwt": {
+    "secret": "your-jwt-secret-key-change-in-production",
+    "expiresIn": "1h"
+  },
+  "logger": {
+    "levels": ["ERROR", "WARN", "INFO", "LOG", "DEBUG"]
+  }
+}
