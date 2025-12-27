@@ -1,6 +1,6 @@
 # Network Registry API
 
-Blockchain Network Registry API - NestJS microservice for managing blockchain network configurations.
+Blockchain Network Registry API - NodeJS + NestJS microservice for managing blockchain network configurations.
 
 ## Prerequisites
 
@@ -151,6 +151,37 @@ Infrastructure → Application → Domain
 | Dependency Injection | NestJS DI container with interface-based injection |
 | DTO Validation | class-validator decorators for request validation |
 | Soft Delete | `active` flag instead of physical deletion |
+
+### Design Decisions
+
+#### Primary Key: UUID vs ChainId
+
+The `networks` table uses a **UUID (`id`) as the primary key** rather than the `chainId`, with `chainId` enforced as a unique constraint.
+
+```sql
+id UUID PRIMARY KEY,
+chain_id INTEGER NOT NULL UNIQUE  -- natural key as unique constraint
+```
+
+**Why UUID as Primary Key:**
+
+| Reason | Explanation |
+|--------|-------------|
+| **Immutable identity** | The database identity never changes, even if business data needs to change |
+| **Decoupling** | Application identity is separate from blockchain/external identity |
+| **Flexibility** | Supports future scenarios like multiple configurations per chain or preserving soft-deleted records |
+| **Consistent API** | All resources use UUIDs (`/networks/:id`), making the API predictable |
+| **No external dependency** | ID is generated internally, not dependent on external blockchain data |
+
+**Why not ChainId as Primary Key:**
+
+| Concern | Explanation |
+|---------|-------------|
+| **Coupled to external system** | ChainId comes from blockchain networks; changes would break references |
+| **Foreign key coupling** | Other tables would need blockchain knowledge to reference networks |
+| **Less flexible** | Would limit to exactly one record per chainId |
+
+The `chainId` uniqueness is still enforced via a unique constraint, ensuring no duplicate blockchain networks while maintaining clean database design.
 
 ## Testing
 
