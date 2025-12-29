@@ -1,6 +1,9 @@
 {
   "server": {
-    "port": "SERVER_PORT"
+    "port": "SERVER_PORT",
+    "cors": {
+      "origin": "CORS_ORIGIN"
+    }
   },
   "database": {
     "connection": {
