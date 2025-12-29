@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { IAppConfig, DatabaseConfig, JwtConfig, SnsConfig } from './app-config.interface';
+import { IAppConfig, DatabaseConfig, AuthConfig, SnsConfig } from './app-config.interface';
 
 // Use require to ensure config is loaded at runtime, not at module load time
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -10,7 +10,7 @@ export class AppConfigService implements IAppConfig {
   readonly serverPort: number;
   readonly serverCorsOrigin: string | string[];
   readonly databaseConfig: DatabaseConfig;
-  readonly jwtConfig: JwtConfig;
+  readonly authConfig: AuthConfig;
   readonly snsConfig: SnsConfig;
   readonly isProduction: boolean;
 
@@ -18,7 +18,7 @@ export class AppConfigService implements IAppConfig {
     this.serverPort = config.get('server.port') as number;
     this.serverCorsOrigin = config.get('server.cors.origin') as string | string[];
     this.databaseConfig = config.get('database') as DatabaseConfig;
-    this.jwtConfig = config.get('jwt') as JwtConfig;
+    this.authConfig = config.get('auth') as AuthConfig;
     this.snsConfig = config.get('sns') as SnsConfig;
     this.isProduction = process.env.NODE_ENV === 'production';
   }

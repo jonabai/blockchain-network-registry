@@ -50,7 +50,7 @@ describe('SnsNetworkEventPublisher', () => {
       serverPort: 3000,
       serverCorsOrigin: '*',
       databaseConfig: {} as IAppConfig['databaseConfig'],
-      jwtConfig: {} as IAppConfig['jwtConfig'],
+      authConfig: { apiKey: 'test-api-key' },
       snsConfig: {
         region: 'us-east-1',
         networkEventsTopicArn: 'arn:aws:sns:us-east-1:123456789012:network-events',

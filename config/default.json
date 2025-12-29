@@ -23,9 +23,8 @@
       "extension": "ts"
     }
   },
-  "jwt": {
-    "secret": "your-jwt-secret-key-change-in-production",
-    "expiresIn": "1h"
+  "auth": {
+    "apiKey": ""
   },
   "logger": {
     "levels": ["ERROR", "WARN", "INFO", "LOG", "DEBUG"]

@@ -17,9 +17,8 @@ export interface DatabaseConfig {
   };
 }
 
-export interface JwtConfig {
-  secret: string;
-  expiresIn: string;
+export interface AuthConfig {
+  apiKey: string;
 }
 
 export interface ServerConfig {
@@ -38,7 +37,7 @@ export interface IAppConfig {
   serverPort: number;
   serverCorsOrigin: string | string[];
   databaseConfig: DatabaseConfig;
-  jwtConfig: JwtConfig;
+  authConfig: AuthConfig;
   snsConfig: SnsConfig;
   isProduction: boolean;
 }

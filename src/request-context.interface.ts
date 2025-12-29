@@ -5,12 +5,12 @@ export interface BaseRequestContext {
   logger: ILogger;
 }
 
-export interface AuthenticatedRequestContext extends BaseRequestContext {
-  account: Account;
-}
-
 export interface Account {
   id: string;
   email: string;
   role: string;
+}
+
+export interface AuthenticatedRequestContext extends BaseRequestContext {
+  account?: Account;
 }

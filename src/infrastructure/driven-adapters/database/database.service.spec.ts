@@ -52,9 +52,11 @@ describe('DatabaseService', () => {
 
     mockConfigService = {
       databaseConfig: mockDatabaseConfig,
-      jwtConfig: { secret: 'test', expiresIn: '1h' },
+      authConfig: { apiKey: 'test-api-key' },
+      snsConfig: { region: 'us-east-1', networkEventsTopicArn: '' },
       serverPort: 3000,
       serverCorsOrigin: '*',
+      isProduction: false,
     } as jest.Mocked<IAppConfig>;
 
     mockLogger = {

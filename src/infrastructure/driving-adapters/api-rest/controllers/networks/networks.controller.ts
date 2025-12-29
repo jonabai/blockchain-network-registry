@@ -12,7 +12,7 @@ import {
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiSecurity, ApiParam } from '@nestjs/swagger';
 import { CreateNetworkUseCase } from '@application/use-cases/networks/create-network/create-network.use-case';
 import { GetNetworkByIdUseCase } from '@application/use-cases/networks/get-network-by-id/get-network-by-id.use-case';
 import { GetActiveNetworksUseCase } from '@application/use-cases/networks/get-active-networks/get-active-networks.use-case';
@@ -21,12 +21,12 @@ import { PartialUpdateNetworkUseCase } from '@application/use-cases/networks/par
 import { DeleteNetworkUseCase } from '@application/use-cases/networks/delete-network/delete-network.use-case';
 import { CreateNetworkDto, UpdateNetworkDto, PatchNetworkDto, NetworkResponseDto } from '../../dto/networks';
 import { RequestContext } from '../../decorators/request-context.decorator';
-import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
-import { AuthenticatedRequestContext } from '../../../../../request-context.interface';
+import { ApiKeyAuthGuard } from '../../guards/api-key-auth.guard';
+import { BaseRequestContext } from '../../../../../request-context.interface';
 
 @ApiTags('Networks')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@ApiSecurity('api-key')
+@UseGuards(ApiKeyAuthGuard)
 @Controller('networks')
 export class NetworksController {
   constructor(
@@ -46,7 +46,7 @@ export class NetworksController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 409, description: 'Network with this chainId already exists' })
   async createNetwork(
-    @RequestContext() context: AuthenticatedRequestContext,
+    @RequestContext() context: BaseRequestContext,
     @Body() createDto: CreateNetworkDto,
   ): Promise<NetworkResponseDto> {
     const network = await this.createNetworkUseCase.execute({
@@ -65,7 +65,7 @@ export class NetworksController {
   @ApiOperation({ summary: 'Get all active blockchain networks' })
   @ApiResponse({ status: 200, description: 'List of active networks', type: [NetworkResponseDto] })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getActiveNetworks(@RequestContext() context: AuthenticatedRequestContext): Promise<NetworkResponseDto[]> {
+  async getActiveNetworks(@RequestContext() context: BaseRequestContext): Promise<NetworkResponseDto[]> {
     const networks = await this.getActiveNetworksUseCase.execute(context);
     return networks.map((network) => NetworkResponseDto.fromDomain(network));
   }
@@ -78,7 +78,7 @@ export class NetworksController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Network not found' })
   async getNetworkById(
-    @RequestContext() context: AuthenticatedRequestContext,
+    @RequestContext() context: BaseRequestContext,
     @Param('networkId', new ParseUUIDPipe()) networkId: string,
   ): Promise<NetworkResponseDto> {
     const network = await this.getNetworkByIdUseCase.execute({
@@ -98,7 +98,7 @@ export class NetworksController {
   @ApiResponse({ status: 404, description: 'Network not found' })
   @ApiResponse({ status: 409, description: 'Network with this chainId already exists' })
   async updateNetwork(
-    @RequestContext() context: AuthenticatedRequestContext,
+    @RequestContext() context: BaseRequestContext,
     @Param('networkId', new ParseUUIDPipe()) networkId: string,
     @Body() updateDto: UpdateNetworkDto,
   ): Promise<NetworkResponseDto> {
@@ -123,7 +123,7 @@ export class NetworksController {
   @ApiResponse({ status: 404, description: 'Network not found' })
   @ApiResponse({ status: 409, description: 'Network with this chainId already exists' })
   async partialUpdateNetwork(
-    @RequestContext() context: AuthenticatedRequestContext,
+    @RequestContext() context: BaseRequestContext,
     @Param('networkId', new ParseUUIDPipe()) networkId: string,
     @Body() patchDto: PatchNetworkDto,
   ): Promise<NetworkResponseDto> {
@@ -143,7 +143,7 @@ export class NetworksController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Network not found' })
   async deleteNetwork(
-    @RequestContext() context: AuthenticatedRequestContext,
+    @RequestContext() context: BaseRequestContext,
     @Param('networkId', new ParseUUIDPipe()) networkId: string,
   ): Promise<void> {
     await this.deleteNetworkUseCase.execute({

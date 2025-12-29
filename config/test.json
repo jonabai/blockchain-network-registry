@@ -23,8 +23,7 @@
       "extension": "ts"
     }
   },
-  "jwt": {
-    "secret": "test-jwt-secret-key",
-    "expiresIn": "1h"
+  "auth": {
+    "apiKey": "test-api-key"
   }
 }

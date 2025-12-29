@@ -8,8 +8,8 @@ import { PartialUpdateNetworkUseCase } from '@application/use-cases/networks/par
 import { DeleteNetworkUseCase } from '@application/use-cases/networks/delete-network/delete-network.use-case';
 import { CreateNetworkDto, UpdateNetworkDto, PatchNetworkDto } from '../../dto/networks';
 import { Network } from '@domain/models/network.model';
-import { AuthenticatedRequestContext } from '../../../../../request-context.interface';
-import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
+import { BaseRequestContext } from '../../../../../request-context.interface';
+import { ApiKeyAuthGuard } from '../../guards/api-key-auth.guard';
 
 describe('NetworksController', () => {
   let controller: NetworksController;
@@ -27,10 +27,9 @@ describe('NetworksController', () => {
     debug: jest.fn(),
   };
 
-  const mockContext: AuthenticatedRequestContext = {
+  const mockContext: BaseRequestContext = {
     correlationId: 'test-correlation-id',
     logger: mockLogger,
-    account: { id: 'user-1', email: 'test@example.com', role: 'admin' },
   };
 
   const mockNetwork: Network = {
@@ -91,7 +90,7 @@ describe('NetworksController', () => {
         },
       ],
     })
-      .overrideGuard(JwtAuthGuard)
+      .overrideGuard(ApiKeyAuthGuard)
       .useValue({ canActivate: () => true })
       .compile();
 

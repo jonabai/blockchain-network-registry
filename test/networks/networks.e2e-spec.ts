@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import * as request from 'supertest';
-import { JwtService } from '@nestjs/jwt';
 import { AppModule } from '../../src/app.module';
 import { DatabaseService } from '@infrastructure/driven-adapters/database/database.service';
 import { AppConfigService } from '@infrastructure/driven-adapters/config/app-config.service';
@@ -9,8 +8,7 @@ import { AppConfigService } from '@infrastructure/driven-adapters/config/app-con
 describe('NetworksController (e2e)', () => {
   let app: INestApplication;
   let databaseService: DatabaseService;
-  let jwtService: JwtService;
-  let authToken: string;
+  let apiKey: string;
 
   const createNetworkDto = {
     chainId: 1,
@@ -47,15 +45,7 @@ describe('NetworksController (e2e)', () => {
     databaseService = app.get(DatabaseService);
     const configService = app.get(AppConfigService);
 
-    jwtService = new JwtService({
-      secret: configService.jwtConfig.secret,
-    });
-
-    authToken = jwtService.sign({
-      sub: 'test-user-id',
-      email: 'test@example.com',
-      role: 'admin',
-    });
+    apiKey = configService.authConfig.apiKey;
 
     await databaseService.runMigrations();
   });
@@ -73,7 +63,7 @@ describe('NetworksController (e2e)', () => {
     it('should create a new network', async () => {
       const response = await request(app.getHttpServer())
         .post('/networks')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .send(createNetworkDto)
         .expect(201);
 
@@ -90,7 +80,7 @@ describe('NetworksController (e2e)', () => {
     it('should return 400 for invalid data', async () => {
       await request(app.getHttpServer())
         .post('/networks')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .send({ ...createNetworkDto, chainId: -1 })
         .expect(400);
     });
@@ -98,13 +88,13 @@ describe('NetworksController (e2e)', () => {
     it('should return 409 for duplicate chainId', async () => {
       await request(app.getHttpServer())
         .post('/networks')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .send(createNetworkDto)
         .expect(201);
 
       await request(app.getHttpServer())
         .post('/networks')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .send(createNetworkDto)
         .expect(409);
     });
@@ -112,7 +102,7 @@ describe('NetworksController (e2e)', () => {
     it('should validate Ethereum address format', async () => {
       await request(app.getHttpServer())
         .post('/networks')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .send({ ...createNetworkDto, defaultSignerAddress: 'invalid-address' })
         .expect(400);
     });
@@ -122,24 +112,24 @@ describe('NetworksController (e2e)', () => {
     it('should return only active networks', async () => {
       await request(app.getHttpServer())
         .post('/networks')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .send(createNetworkDto)
         .expect(201);
 
       const network2 = await request(app.getHttpServer())
         .post('/networks')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .send({ ...createNetworkDto, chainId: 137, name: 'Polygon' })
         .expect(201);
 
       await request(app.getHttpServer())
         .delete(`/networks/${network2.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .expect(204);
 
       const response = await request(app.getHttpServer())
         .get('/networks')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .expect(200);
 
       expect(response.body).toHaveLength(1);
@@ -155,13 +145,13 @@ describe('NetworksController (e2e)', () => {
     it('should return a network by id', async () => {
       const created = await request(app.getHttpServer())
         .post('/networks')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .send(createNetworkDto)
         .expect(201);
 
       const response = await request(app.getHttpServer())
         .get(`/networks/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .expect(200);
 
       expect(response.body.id).toBe(created.body.id);
@@ -171,14 +161,14 @@ describe('NetworksController (e2e)', () => {
     it('should return 404 for non-existent network', async () => {
       await request(app.getHttpServer())
         .get('/networks/550e8400-e29b-41d4-a716-446655440000')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .expect(404);
     });
 
     it('should return 400 for invalid UUID', async () => {
       await request(app.getHttpServer())
         .get('/networks/invalid-uuid')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .expect(400);
     });
   });
@@ -187,7 +177,7 @@ describe('NetworksController (e2e)', () => {
     it('should fully update a network', async () => {
       const created = await request(app.getHttpServer())
         .post('/networks')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .send(createNetworkDto)
         .expect(201);
 
@@ -199,7 +189,7 @@ describe('NetworksController (e2e)', () => {
 
       const response = await request(app.getHttpServer())
         .put(`/networks/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .send(updateDto)
         .expect(200);
 
@@ -210,7 +200,7 @@ describe('NetworksController (e2e)', () => {
     it('should return 404 for non-existent network', async () => {
       await request(app.getHttpServer())
         .put('/networks/550e8400-e29b-41d4-a716-446655440000')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .send(createNetworkDto)
         .expect(404);
     });
@@ -218,19 +208,19 @@ describe('NetworksController (e2e)', () => {
     it('should return 409 when updating to existing chainId', async () => {
       const network1 = await request(app.getHttpServer())
         .post('/networks')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .send(createNetworkDto)
         .expect(201);
 
       await request(app.getHttpServer())
         .post('/networks')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .send({ ...createNetworkDto, chainId: 137, name: 'Polygon' })
         .expect(201);
 
       await request(app.getHttpServer())
         .put(`/networks/${network1.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .send({ ...createNetworkDto, chainId: 137 })
         .expect(409);
     });
@@ -240,13 +230,13 @@ describe('NetworksController (e2e)', () => {
     it('should partially update a network', async () => {
       const created = await request(app.getHttpServer())
         .post('/networks')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .send(createNetworkDto)
         .expect(201);
 
       const response = await request(app.getHttpServer())
         .patch(`/networks/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .send({ name: 'Partially Updated Name' })
         .expect(200);
 
@@ -257,13 +247,13 @@ describe('NetworksController (e2e)', () => {
     it('should update active status', async () => {
       const created = await request(app.getHttpServer())
         .post('/networks')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .send(createNetworkDto)
         .expect(201);
 
       const response = await request(app.getHttpServer())
         .patch(`/networks/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .send({ active: false })
         .expect(200);
 
@@ -275,18 +265,18 @@ describe('NetworksController (e2e)', () => {
     it('should soft delete a network', async () => {
       const created = await request(app.getHttpServer())
         .post('/networks')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .send(createNetworkDto)
         .expect(201);
 
       await request(app.getHttpServer())
         .delete(`/networks/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .expect(204);
 
       const response = await request(app.getHttpServer())
         .get(`/networks/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .expect(200);
 
       expect(response.body.active).toBe(false);
@@ -295,7 +285,7 @@ describe('NetworksController (e2e)', () => {
     it('should return 404 for non-existent network', async () => {
       await request(app.getHttpServer())
         .delete('/networks/550e8400-e29b-41d4-a716-446655440000')
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-API-Key', apiKey)
         .expect(404);
     });
   });

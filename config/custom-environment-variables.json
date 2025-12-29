@@ -14,9 +14,8 @@
       "password": "DB_PASSWORD"
     }
   },
-  "jwt": {
-    "secret": "JWT_SECRET",
-    "expiresIn": "JWT_EXPIRES_IN"
+  "auth": {
+    "apiKey": "API_KEY"
   },
   "sns": {
     "region": "AWS_REGION",
