@@ -72,7 +72,7 @@ async function bootstrap(): Promise<void> {
 }
 
 bootstrap().catch((error) => {
-  // eslint-disable-next-line no-console
+   
   console.error('Failed to start application:', error);
   process.exit(1);
 });

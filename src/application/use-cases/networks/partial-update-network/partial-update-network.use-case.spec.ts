@@ -1,12 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PartialUpdateNetworkUseCase, PartialUpdateNetworkContext } from './partial-update-network.use-case';
 import { NetworkRepository } from '@domain/gateways/network-repository.gateway';
+import { NetworkEventPublisher } from '@domain/gateways/network-event-publisher.gateway';
 import { NotFoundError, ConflictError } from '@shared/errors/domain.errors';
 import { Network } from '@domain/models/network.model';
+import { NetworkEventType } from '@domain/models/network-event.model';
 
 describe('PartialUpdateNetworkUseCase', () => {
   let useCase: PartialUpdateNetworkUseCase;
   let mockNetworkRepository: jest.Mocked<NetworkRepository>;
+  let mockNetworkEventPublisher: jest.Mocked<NetworkEventPublisher>;
   let mockLogger: jest.Mocked<{
     info: jest.Mock;
     warn: jest.Mock;
@@ -48,12 +51,20 @@ describe('PartialUpdateNetworkUseCase', () => {
       existsByChainId: jest.fn(),
     } as unknown as jest.Mocked<NetworkRepository>;
 
+    mockNetworkEventPublisher = {
+      publish: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<NetworkEventPublisher>;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PartialUpdateNetworkUseCase,
         {
           provide: NetworkRepository,
           useValue: mockNetworkRepository,
+        },
+        {
+          provide: NetworkEventPublisher,
+          useValue: mockNetworkEventPublisher,
         },
       ],
     }).compile();
@@ -135,6 +146,76 @@ describe('PartialUpdateNetworkUseCase', () => {
 
       expect(result.feeMultiplier).toBe(1.5);
       expect(mockNetworkRepository.existsByChainId).not.toHaveBeenCalled();
+    });
+
+    it('should publish NETWORK_UPDATED event after successful partial update', async () => {
+      const updatedNetwork = { ...mockNetwork, name: 'Updated Name' };
+      mockNetworkRepository.findById.mockResolvedValue(mockNetwork);
+      mockNetworkRepository.update.mockResolvedValue(updatedNetwork);
+
+      const context: PartialUpdateNetworkContext = {
+        correlationId: 'test-correlation-id',
+        logger: mockLogger,
+        account: { id: 'user-1', email: 'test@example.com', role: 'admin' },
+        networkId: mockNetwork.id,
+        data: {
+          name: 'Updated Name',
+        },
+      };
+
+      await useCase.execute(context);
+
+      expect(mockNetworkEventPublisher.publish).toHaveBeenCalledTimes(1);
+      expect(mockNetworkEventPublisher.publish).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: NetworkEventType.NETWORK_UPDATED,
+          correlationId: 'test-correlation-id',
+          data: expect.objectContaining({
+            id: mockNetwork.id,
+            name: 'Updated Name',
+          }),
+        }),
+        { logger: mockLogger },
+      );
+    });
+
+    it('should not publish event when update fails with NotFoundError', async () => {
+      mockNetworkRepository.findById.mockResolvedValue(null);
+
+      const context: PartialUpdateNetworkContext = {
+        correlationId: 'test-correlation-id',
+        logger: mockLogger,
+        account: { id: 'user-1', email: 'test@example.com', role: 'admin' },
+        networkId: 'non-existent-id',
+        data: {
+          name: 'Updated Name',
+        },
+      };
+
+      await expect(useCase.execute(context)).rejects.toThrow(NotFoundError);
+      expect(mockNetworkEventPublisher.publish).not.toHaveBeenCalled();
+    });
+
+    it('should still return network even if event publishing fails', async () => {
+      const updatedNetwork = { ...mockNetwork, name: 'Updated Name' };
+      mockNetworkRepository.findById.mockResolvedValue(mockNetwork);
+      mockNetworkRepository.update.mockResolvedValue(updatedNetwork);
+      mockNetworkEventPublisher.publish.mockRejectedValue(new Error('SNS error'));
+
+      const context: PartialUpdateNetworkContext = {
+        correlationId: 'test-correlation-id',
+        logger: mockLogger,
+        account: { id: 'user-1', email: 'test@example.com', role: 'admin' },
+        networkId: mockNetwork.id,
+        data: {
+          name: 'Updated Name',
+        },
+      };
+
+      const result = await useCase.execute(context);
+
+      expect(result).toEqual(updatedNetwork);
+      expect(mockLogger.error).toHaveBeenCalledWith('Failed to publish network updated event', expect.any(Object));
     });
   });
 });

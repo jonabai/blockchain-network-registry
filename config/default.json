@@ -29,5 +29,9 @@
   },
   "logger": {
     "levels": ["ERROR", "WARN", "INFO", "LOG", "DEBUG"]
+  },
+  "sns": {
+    "region": "us-east-1",
+    "networkEventsTopicArn": ""
   }
 }

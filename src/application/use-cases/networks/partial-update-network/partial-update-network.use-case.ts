@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { NetworkRepository } from '@domain/gateways/network-repository.gateway';
+import { NetworkEventPublisher } from '@domain/gateways/network-event-publisher.gateway';
 import { Network, UpdateNetworkData } from '@domain/models/network.model';
+import { NetworkEventType, networkToEventData } from '@domain/models/network-event.model';
 import { AuthenticatedRequestContext } from '../../../../request-context.interface';
 import { NotFoundError, ConflictError } from '@shared/errors/domain.errors';
 
@@ -11,10 +13,13 @@ export interface PartialUpdateNetworkContext extends AuthenticatedRequestContext
 
 @Injectable()
 export class PartialUpdateNetworkUseCase {
-  constructor(private readonly networkRepository: NetworkRepository) {}
+  constructor(
+    private readonly networkRepository: NetworkRepository,
+    private readonly networkEventPublisher: NetworkEventPublisher,
+  ) {}
 
   async execute(context: PartialUpdateNetworkContext): Promise<Network> {
-    const { networkId, data, logger } = context;
+    const { networkId, data, logger, correlationId } = context;
 
     logger.info('Executing PartialUpdateNetworkUseCase', { networkId });
 
@@ -41,6 +46,23 @@ export class PartialUpdateNetworkUseCase {
     }
 
     logger.info('Network partially updated successfully', { networkId });
+
+    try {
+      await this.networkEventPublisher.publish(
+        {
+          eventType: NetworkEventType.NETWORK_UPDATED,
+          timestamp: new Date().toISOString(),
+          correlationId,
+          data: networkToEventData(updatedNetwork),
+        },
+        { logger },
+      );
+    } catch (error) {
+      logger.error('Failed to publish network updated event', {
+        networkId: updatedNetwork.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
     return updatedNetwork;
   }

@@ -1,12 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CreateNetworkUseCase, CreateNetworkContext } from './create-network.use-case';
 import { NetworkRepository } from '@domain/gateways/network-repository.gateway';
+import { NetworkEventPublisher } from '@domain/gateways/network-event-publisher.gateway';
 import { ConflictError } from '@shared/errors/domain.errors';
 import { Network, CreateNetworkData } from '@domain/models/network.model';
+import { NetworkEventType } from '@domain/models/network-event.model';
 
 describe('CreateNetworkUseCase', () => {
   let useCase: CreateNetworkUseCase;
   let mockNetworkRepository: jest.Mocked<NetworkRepository>;
+  let mockNetworkEventPublisher: jest.Mocked<NetworkEventPublisher>;
   let mockLogger: jest.Mocked<{
     info: jest.Mock;
     warn: jest.Mock;
@@ -52,12 +55,20 @@ describe('CreateNetworkUseCase', () => {
       existsByChainId: jest.fn(),
     } as unknown as jest.Mocked<NetworkRepository>;
 
+    mockNetworkEventPublisher = {
+      publish: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<NetworkEventPublisher>;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CreateNetworkUseCase,
         {
           provide: NetworkRepository,
           useValue: mockNetworkRepository,
+        },
+        {
+          provide: NetworkEventPublisher,
+          useValue: mockNetworkEventPublisher,
         },
       ],
     }).compile();
@@ -100,6 +111,52 @@ describe('CreateNetworkUseCase', () => {
       await expect(useCase.execute(context)).rejects.toThrow(ConflictError);
       await expect(useCase.execute(context)).rejects.toThrow(`Network with chainId ${mockNetworkData.chainId} already exists`);
       expect(mockNetworkRepository.create).not.toHaveBeenCalled();
+      expect(mockNetworkEventPublisher.publish).not.toHaveBeenCalled();
+    });
+
+    it('should publish NETWORK_CREATED event after successful creation', async () => {
+      mockNetworkRepository.existsByChainId.mockResolvedValue(false);
+      mockNetworkRepository.create.mockResolvedValue(mockNetwork);
+
+      const context: CreateNetworkContext = {
+        correlationId: 'test-correlation-id',
+        logger: mockLogger,
+        account: { id: 'user-1', email: 'test@example.com', role: 'admin' },
+        data: mockNetworkData,
+      };
+
+      await useCase.execute(context);
+
+      expect(mockNetworkEventPublisher.publish).toHaveBeenCalledTimes(1);
+      expect(mockNetworkEventPublisher.publish).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: NetworkEventType.NETWORK_CREATED,
+          correlationId: 'test-correlation-id',
+          data: expect.objectContaining({
+            id: mockNetwork.id,
+            chainId: mockNetwork.chainId,
+          }),
+        }),
+        { logger: mockLogger },
+      );
+    });
+
+    it('should still return network even if event publishing fails', async () => {
+      mockNetworkRepository.existsByChainId.mockResolvedValue(false);
+      mockNetworkRepository.create.mockResolvedValue(mockNetwork);
+      mockNetworkEventPublisher.publish.mockRejectedValue(new Error('SNS error'));
+
+      const context: CreateNetworkContext = {
+        correlationId: 'test-correlation-id',
+        logger: mockLogger,
+        account: { id: 'user-1', email: 'test@example.com', role: 'admin' },
+        data: mockNetworkData,
+      };
+
+      const result = await useCase.execute(context);
+
+      expect(result).toEqual(mockNetwork);
+      expect(mockLogger.error).toHaveBeenCalledWith('Failed to publish network created event', expect.any(Object));
     });
   });
 });

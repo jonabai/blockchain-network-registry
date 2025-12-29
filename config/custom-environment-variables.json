@@ -17,5 +17,9 @@
   "jwt": {
     "secret": "JWT_SECRET",
     "expiresIn": "JWT_EXPIRES_IN"
+  },
+  "sns": {
+    "region": "AWS_REGION",
+    "networkEventsTopicArn": "SNS_NETWORK_EVENTS_TOPIC_ARN"
   }
 }

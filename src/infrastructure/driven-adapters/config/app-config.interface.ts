@@ -29,10 +29,16 @@ export interface ServerConfig {
   };
 }
 
+export interface SnsConfig {
+  region: string;
+  networkEventsTopicArn: string;
+}
+
 export interface IAppConfig {
   serverPort: number;
   serverCorsOrigin: string | string[];
   databaseConfig: DatabaseConfig;
   jwtConfig: JwtConfig;
+  snsConfig: SnsConfig;
   isProduction: boolean;
 }
