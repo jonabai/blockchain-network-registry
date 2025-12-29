@@ -32,7 +32,7 @@ describe('PostgresNetworkRepository', () => {
     chain_id: 1,
     name: 'Ethereum Mainnet',
     rpc_url: 'https://mainnet.infura.io/v3/your-key',
-    other_rpc_urls: ['https://eth-mainnet.g.alchemy.com/v2/your-key'],
+    other_rpc_urls: '["https://eth-mainnet.g.alchemy.com/v2/your-key"]',
     test_net: false,
     block_explorer_url: 'https://etherscan.io',
     fee_multiplier: '1.0000',
@@ -218,6 +218,14 @@ describe('PostgresNetworkRepository', () => {
       await expect(repository.create(createData, mockOptions)).rejects.toThrow('Insert failed');
       expect(mockLogger.error).toHaveBeenCalledWith('Error creating network', expect.any(Object));
     });
+
+    it('should throw ConflictError when unique constraint is violated', async () => {
+      const uniqueViolationError = { code: '23505', message: 'duplicate key value violates unique constraint' };
+      mockQueryBuilder.insert.mockRejectedValue(uniqueViolationError);
+
+      await expect(repository.create(createData, mockOptions)).rejects.toThrow('Network with chainId 1 already exists');
+      expect(mockLogger.warn).toHaveBeenCalledWith('Unique constraint violation during network creation', { chainId: 1 });
+    });
   });
 
   describe('update', () => {
@@ -256,6 +264,16 @@ describe('PostgresNetworkRepository', () => {
 
       await expect(repository.update('some-id', updateData, mockOptions)).rejects.toThrow('Update failed');
       expect(mockLogger.error).toHaveBeenCalledWith('Error updating network', expect.any(Object));
+    });
+
+    it('should throw ConflictError when unique constraint is violated on chainId update', async () => {
+      const updateWithChainId: UpdateNetworkData = { chainId: 137 };
+      mockQueryBuilder.first.mockResolvedValueOnce(mockNetworkRow);
+      const uniqueViolationError = { code: '23505', message: 'duplicate key value violates unique constraint' };
+      mockQueryBuilder.update.mockRejectedValue(uniqueViolationError);
+
+      await expect(repository.update('some-id', updateWithChainId, mockOptions)).rejects.toThrow('Network with chainId 137 already exists');
+      expect(mockLogger.warn).toHaveBeenCalledWith('Unique constraint violation during network update', { id: 'some-id', chainId: 137 });
     });
   });
 
@@ -343,8 +361,17 @@ describe('PostgresNetworkRepository', () => {
     });
 
     it('should handle empty other_rpc_urls', async () => {
-      const rowWithEmptyUrls = { ...mockNetworkRow, other_rpc_urls: [] };
+      const rowWithEmptyUrls = { ...mockNetworkRow, other_rpc_urls: '[]' };
       mockQueryBuilder.first.mockResolvedValue(rowWithEmptyUrls);
+
+      const result = await repository.findById('some-id', mockOptions);
+
+      expect(result?.otherRpcUrls).toEqual([]);
+    });
+
+    it('should handle invalid JSON in other_rpc_urls gracefully', async () => {
+      const rowWithInvalidJson = { ...mockNetworkRow, other_rpc_urls: 'not-valid-json' };
+      mockQueryBuilder.first.mockResolvedValue(rowWithInvalidJson);
 
       const result = await repository.findById('some-id', mockOptions);
 

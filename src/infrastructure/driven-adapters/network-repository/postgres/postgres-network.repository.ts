@@ -2,14 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { NetworkRepository, RepositoryOptions } from '@domain/gateways/network-repository.gateway';
 import { Network, CreateNetworkData, UpdateNetworkData } from '@domain/models/network.model';
 import { DatabaseService } from '../../database/database.service';
+import { ConflictError } from '@shared/errors/domain.errors';
 import { v4 as uuidv4 } from 'uuid';
+
+const POSTGRES_UNIQUE_VIOLATION = '23505';
 
 interface NetworkRow {
   id: string;
   chain_id: number;
   name: string;
   rpc_url: string;
-  other_rpc_urls: string[];
+  other_rpc_urls: string | null;
   test_net: boolean;
   block_explorer_url: string;
   fee_multiplier: string;
@@ -32,13 +35,25 @@ export class PostgresNetworkRepository extends NetworkRepository {
     return this.databaseService.getKnex();
   }
 
+  private parseOtherRpcUrls(value: string | null): string[] {
+    if (!value) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
   private mapToDomain(row: NetworkRow): Network {
     return {
       id: row.id,
       chainId: row.chain_id,
       name: row.name,
       rpcUrl: row.rpc_url,
-      otherRpcUrls: Array.isArray(row.other_rpc_urls) ? row.other_rpc_urls : [],
+      otherRpcUrls: this.parseOtherRpcUrls(row.other_rpc_urls),
       testNet: row.test_net,
       blockExplorerUrl: row.block_explorer_url,
       feeMultiplier: parseFloat(row.fee_multiplier),
@@ -142,6 +157,10 @@ export class PostgresNetworkRepository extends NetworkRepository {
     }
   }
 
+  private isUniqueViolation(error: unknown): boolean {
+    return typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === POSTGRES_UNIQUE_VIOLATION;
+  }
+
   async create(data: CreateNetworkData, options: RepositoryOptions): Promise<Network> {
     const { logger } = options;
     logger.info('Creating network', { chainId: data.chainId, name: data.name });
@@ -166,6 +185,10 @@ export class PostgresNetworkRepository extends NetworkRepository {
       logger.info('Network created successfully', { id, chainId: data.chainId });
       return created;
     } catch (error) {
+      if (this.isUniqueViolation(error)) {
+        logger.warn('Unique constraint violation during network creation', { chainId: data.chainId });
+        throw new ConflictError(`Network with chainId ${data.chainId} already exists`);
+      }
       logger.error('Error creating network', { chainId: data.chainId, error: String(error) });
       throw error;
     }
@@ -193,6 +216,10 @@ export class PostgresNetworkRepository extends NetworkRepository {
       logger.info('Network updated successfully', { id });
       return updated;
     } catch (error) {
+      if (this.isUniqueViolation(error) && 'chainId' in data) {
+        logger.warn('Unique constraint violation during network update', { id, chainId: data.chainId });
+        throw new ConflictError(`Network with chainId ${data.chainId} already exists`);
+      }
       logger.error('Error updating network', { id, error: String(error) });
       throw error;
     }
