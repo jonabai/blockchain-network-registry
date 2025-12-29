@@ -250,7 +250,7 @@ export class PostgresNetworkRepository extends NetworkRepository {
   }
 
   async existsByChainId(chainId: number, excludeId?: string, options?: RepositoryOptions): Promise<boolean> {
-    options?.logger.info('Checking if network exists by chainId', { chainId, excludeId });
+    options?.logger?.info('Checking if network exists by chainId', { chainId, excludeId });
 
     try {
       let query = this.getKnex()(this.tableName).where({ chain_id: chainId });
@@ -262,10 +262,10 @@ export class PostgresNetworkRepository extends NetworkRepository {
       const row = await query.first();
       const exists = !!row;
 
-      options?.logger.info('Network exists check result', { chainId, exists });
+      options?.logger?.info('Network exists check result', { chainId, exists });
       return exists;
     } catch (error) {
-      options?.logger.error('Error checking network existence', { chainId, error: String(error) });
+      options?.logger?.error('Error checking network existence', { chainId, error: String(error) });
       throw error;
     }
   }

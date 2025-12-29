@@ -348,6 +348,15 @@ describe('PostgresNetworkRepository', () => {
       await expect(repository.existsByChainId(1, undefined, mockOptions)).rejects.toThrow('Query failed');
       expect(mockLogger.error).toHaveBeenCalledWith('Error checking network existence', expect.any(Object));
     });
+
+    it('should work without options parameter', async () => {
+      mockQueryBuilder.first.mockResolvedValue(mockNetworkRow);
+
+      const result = await repository.existsByChainId(1);
+
+      expect(result).toBe(true);
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith({ chain_id: 1 });
+    });
   });
 
   describe('mapToDomain edge cases', () => {
