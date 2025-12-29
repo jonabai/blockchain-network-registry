@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsString,
   IsNumber,
@@ -14,6 +15,7 @@ import {
 
 export class CreateNetworkDto {
   @ApiProperty({ description: 'Unique blockchain chain ID', example: 1 })
+  @Type(() => Number)
   @IsNumber()
   @Min(1)
   chainId: number;
@@ -49,11 +51,13 @@ export class CreateNetworkDto {
   blockExplorerUrl: string;
 
   @ApiProperty({ description: 'Fee multiplier for gas price', example: 1.0, minimum: 0 })
+  @Type(() => Number)
   @IsNumber()
   @Min(0)
   feeMultiplier: number;
 
   @ApiProperty({ description: 'Gas limit multiplier', example: 1.0, minimum: 0 })
+  @Type(() => Number)
   @IsNumber()
   @Min(0)
   gasLimitMultiplier: number;
