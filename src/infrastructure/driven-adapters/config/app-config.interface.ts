@@ -34,4 +34,5 @@ export interface IAppConfig {
   serverCorsOrigin: string | string[];
   databaseConfig: DatabaseConfig;
   jwtConfig: JwtConfig;
+  isProduction: boolean;
 }

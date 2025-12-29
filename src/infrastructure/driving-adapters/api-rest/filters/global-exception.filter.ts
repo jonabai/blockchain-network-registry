@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { DomainError } from '@shared/errors/domain.errors';
 import { ValidationError } from '@shared/errors/validation.error';
 import { ILogger } from '@domain/gateways/network-repository.gateway';
+import { AppConfigService } from '@infrastructure/driven-adapters/config/app-config.service';
 
 interface ErrorResponse {
   error: {
@@ -16,7 +17,10 @@ interface ErrorResponse {
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
-  constructor(@Inject('ILogger') private readonly logger: ILogger) {}
+  constructor(
+    @Inject('ILogger') private readonly logger: ILogger,
+    private readonly configService: AppConfigService,
+  ) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
@@ -126,6 +130,24 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     return codes[status] || 'ERROR';
   }
 
+  private formatErrorForLogging(exception: unknown): Record<string, unknown> {
+    if (!(exception instanceof Error)) {
+      return { message: String(exception) };
+    }
+
+    const errorInfo: Record<string, unknown> = {
+      name: exception.name,
+      message: exception.message,
+    };
+
+    // Only include stack traces in non-production environments
+    if (!this.configService.isProduction) {
+      errorInfo.stack = exception.stack;
+    }
+
+    return errorInfo;
+  }
+
   private logError(exception: unknown, request: Request, statusCode: number): void {
     const logContext = {
       requestId: request.headers['x-correlation-id'],
@@ -137,7 +159,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (statusCode >= 500) {
       this.logger.error('Unhandled exception', {
         ...logContext,
-        error: exception instanceof Error ? exception.stack : String(exception),
+        error: this.formatErrorForLogging(exception),
       });
     } else if (statusCode >= 400) {
       this.logger.warn('Client error', {

@@ -3,11 +3,12 @@ import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AppConfigService } from '@infrastructure/driven-adapters/config/app-config.service';
+import { LoggerService } from '@infrastructure/driven-adapters/logger/logger.service';
 
 describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;
   let jwtService: jest.Mocked<JwtService>;
-  let configService: jest.Mocked<AppConfigService>;
+  let mockLogger: jest.Mocked<LoggerService>;
 
   const mockJwtConfig = {
     secret: 'test-secret',
@@ -35,6 +36,18 @@ describe('JwtAuthGuard', () => {
   };
 
   beforeEach(async () => {
+    mockLogger = {
+      setContext: jest.fn(),
+      setCorrelationId: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      log: jest.fn(),
+      verbose: jest.fn(),
+      child: jest.fn(),
+    } as unknown as jest.Mocked<LoggerService>;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         JwtAuthGuard,
@@ -50,12 +63,15 @@ describe('JwtAuthGuard', () => {
             jwtConfig: mockJwtConfig,
           },
         },
+        {
+          provide: LoggerService,
+          useValue: mockLogger,
+        },
       ],
     }).compile();
 
     guard = module.get<JwtAuthGuard>(JwtAuthGuard);
     jwtService = module.get(JwtService);
-    configService = module.get(AppConfigService);
   });
 
   it('should be defined', () => {
@@ -102,20 +118,26 @@ describe('JwtAuthGuard', () => {
       await expect(guard.canActivate(context)).rejects.toThrow('No authentication token provided');
     });
 
-    it('should throw UnauthorizedException when token is invalid', async () => {
+    it('should throw UnauthorizedException and log warning when token is invalid', async () => {
       const context = createMockExecutionContext('Bearer invalid-token');
       jwtService.verifyAsync.mockRejectedValue(new Error('Invalid token'));
 
       await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
-      await expect(guard.canActivate(context)).rejects.toThrow('Invalid or expired authentication token');
+      expect(mockLogger.warn).toHaveBeenCalledWith('JWT verification failed', {
+        error: 'Invalid token',
+        tokenPrefix: 'invalid-token...',
+      });
     });
 
-    it('should throw UnauthorizedException when token is expired', async () => {
+    it('should throw UnauthorizedException and log warning when token is expired', async () => {
       const context = createMockExecutionContext('Bearer expired-token');
       jwtService.verifyAsync.mockRejectedValue(new Error('jwt expired'));
 
       await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
-      await expect(guard.canActivate(context)).rejects.toThrow('Invalid or expired authentication token');
+      expect(mockLogger.warn).toHaveBeenCalledWith('JWT verification failed', {
+        error: 'jwt expired',
+        tokenPrefix: 'expired-token...',
+      });
     });
 
     it('should handle token without Bearer prefix', async () => {

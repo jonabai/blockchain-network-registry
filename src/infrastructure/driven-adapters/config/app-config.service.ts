@@ -11,11 +11,13 @@ export class AppConfigService implements IAppConfig {
   readonly serverCorsOrigin: string | string[];
   readonly databaseConfig: DatabaseConfig;
   readonly jwtConfig: JwtConfig;
+  readonly isProduction: boolean;
 
   constructor() {
     this.serverPort = config.get('server.port') as number;
     this.serverCorsOrigin = config.get('server.cors.origin') as string | string[];
     this.databaseConfig = config.get('database') as DatabaseConfig;
     this.jwtConfig = config.get('jwt') as JwtConfig;
+    this.isProduction = process.env.NODE_ENV === 'production';
   }
 }

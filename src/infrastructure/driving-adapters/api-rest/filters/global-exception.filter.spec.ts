@@ -2,6 +2,7 @@ import { ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
 import { GlobalExceptionFilter } from './global-exception.filter';
 import { NotFoundError, ConflictError, UnauthorizedError } from '@shared/errors/domain.errors';
 import { ValidationError } from '@shared/errors/validation.error';
+import { AppConfigService } from '@infrastructure/driven-adapters/config/app-config.service';
 
 describe('GlobalExceptionFilter', () => {
   let filter: GlobalExceptionFilter;
@@ -11,6 +12,7 @@ describe('GlobalExceptionFilter', () => {
     error: jest.Mock;
     debug: jest.Mock;
   };
+  let mockConfigService: Partial<AppConfigService>;
   let mockResponse: {
     status: jest.Mock;
     json: jest.Mock;
@@ -38,6 +40,10 @@ describe('GlobalExceptionFilter', () => {
       debug: jest.fn(),
     };
 
+    mockConfigService = {
+      isProduction: false,
+    };
+
     mockResponse = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn(),
@@ -49,7 +55,7 @@ describe('GlobalExceptionFilter', () => {
       path: '/networks',
     };
 
-    filter = new GlobalExceptionFilter(mockLogger);
+    filter = new GlobalExceptionFilter(mockLogger, mockConfigService as AppConfigService);
   });
 
   describe('catch', () => {
@@ -246,6 +252,63 @@ describe('GlobalExceptionFilter', () => {
       filter.catch(exception, host);
 
       expect(mockLogger.error).toHaveBeenCalled();
+    });
+
+    it('should include stack trace in error log when not in production', () => {
+      const devConfigService = { isProduction: false } as AppConfigService;
+      const devFilter = new GlobalExceptionFilter(mockLogger, devConfigService);
+
+      const exception = new Error('Database connection failed');
+      const host = createMockArgumentsHost();
+
+      devFilter.catch(exception, host);
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Unhandled exception',
+        expect.objectContaining({
+          error: expect.objectContaining({
+            name: 'Error',
+            message: 'Database connection failed',
+            stack: expect.any(String),
+          }),
+        }),
+      );
+    });
+
+    it('should NOT include stack trace in error log when in production', () => {
+      const prodConfigService = { isProduction: true } as AppConfigService;
+      const prodFilter = new GlobalExceptionFilter(mockLogger, prodConfigService);
+
+      const exception = new Error('Database connection failed');
+      const host = createMockArgumentsHost();
+
+      prodFilter.catch(exception, host);
+
+      const errorCall = mockLogger.error.mock.calls[0];
+      const loggedError = errorCall[1].error;
+
+      expect(loggedError).toEqual({
+        name: 'Error',
+        message: 'Database connection failed',
+      });
+      expect(loggedError.stack).toBeUndefined();
+    });
+
+    it('should handle non-Error exceptions in production', () => {
+      const prodConfigService = { isProduction: true } as AppConfigService;
+      const prodFilter = new GlobalExceptionFilter(mockLogger, prodConfigService);
+
+      const exception = 'string exception';
+      const host = createMockArgumentsHost();
+
+      prodFilter.catch(exception, host);
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Unhandled exception',
+        expect.objectContaining({
+          error: { message: 'string exception' },
+        }),
+      );
     });
   });
 });
